@@ -70,7 +70,8 @@ $env:INFEROPS_TORCH_THREADS = "4"
 .\.venv\Scripts\uvicorn inferops.server:app --port 8000
 ```
 
-**Kaggle GPU:** see the week 2 notebook (coming next). On a T4, use
+**Kaggle GPU:** import [notebooks/week2_baseline_gpu.ipynb](notebooks/week2_baseline_gpu.ipynb)
+into a Kaggle notebook with GPU T4 x2 and Internet enabled. On a T4, use
 `INFEROPS_DTYPE=float16`; T4s have no bfloat16 support.
 
 ## Configuration

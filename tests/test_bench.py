@@ -4,6 +4,7 @@ import time
 
 import pytest
 
+from bench.gpumon import GPUMonitor, parse_nvidia_smi
 from bench.loadgen import RequestResult, summarize
 from bench.prompts import build_dataset
 from inferops.backends.base import iterate_in_thread
@@ -24,6 +25,19 @@ def test_goodput_counts_only_requests_meeting_slo():
     assert s["rps"] == pytest.approx(1.5)
     assert s["goodput_rps"] == pytest.approx(0.5)
     assert s["slo_attainment"] == pytest.approx(0.25)
+
+
+def test_parse_nvidia_smi_two_gpus():
+    rows = parse_nvidia_smi("0, 6512, 15360, 87\n1, 0, 15360, 0\n")
+    assert rows[0] == {"gpu": 0, "mem_used_mib": 6512.0, "mem_total_mib": 15360.0, "util_pct": 87.0}
+    assert rows[1]["mem_used_mib"] == 0.0
+
+
+def test_gpu_monitor_summarizes_peak_and_mean():
+    mon = GPUMonitor()
+    mon.samples = [{"gpu": 0, "mem_used_mib": m, "mem_total_mib": 15360.0, "util_pct": u}
+                   for m, u in [(6000, 50), (7000, 100)]]
+    assert mon.summary() == {"0": {"peak_mem_mib": 7000, "mem_total_mib": 15360.0, "mean_util_pct": 75.0}}
 
 
 def test_datasets_are_deterministic_and_sized():

@@ -20,6 +20,7 @@ from pathlib import Path
 import httpx
 import numpy as np
 
+from bench.gpumon import GPUMonitor
 from bench.prompts import build_dataset
 
 
@@ -140,7 +141,13 @@ def print_table(levels: list[dict]) -> None:
 async def main(args: argparse.Namespace) -> None:
     url = args.url.rstrip("/")
     async with httpx.AsyncClient(timeout=10) as client:
-        server_info = (await client.get(f"{url}/health")).json()
+        health = await client.get(f"{url}/health")
+        health.raise_for_status()
+        # vLLM's /health returns an empty 200, so fall back to /v1/models.
+        server_info = health.json() if health.content else {}
+        if "model" not in server_info:
+            models = (await client.get(f"{url}/v1/models")).json()["data"]
+            server_info = {"backend": "openai-compatible", "model": models[0]["id"]}
     prompts = build_dataset(args.dataset, n=max(args.num_requests, 50), seed=args.seed)
 
     for _ in range(args.warmup):  # first request pays one-off costs (lazy init, caches)
@@ -148,9 +155,11 @@ async def main(args: argparse.Namespace) -> None:
 
     levels, raw = [], {}
     for c in args.concurrency:
-        results, wall = await run_level(url, prompts, c, args.num_requests, args.max_tokens,
-                                        args.ignore_eos, args.timeout)
+        with GPUMonitor() as gpu:
+            results, wall = await run_level(url, prompts, c, args.num_requests, args.max_tokens,
+                                            args.ignore_eos, args.timeout)
         levels.append(summarize(results, wall, c, args.slo_ttft_ms / 1000, args.slo_tpot_ms / 1000))
+        levels[-1]["gpu"] = gpu.summary()
         raw[c] = [asdict(r) for r in results]
         print(f"concurrency={c}: {levels[-1]['rps']:.2f} req/s, {levels[-1]['errors']} errors")
 
@@ -169,7 +178,7 @@ async def main(args: argparse.Namespace) -> None:
         "levels": levels,
         "requests": raw,
     }
-    out = Path(args.out or f"results/{datetime.now():%Y%m%d-%H%M%S}_{args.label or server_info['backend']}_{args.dataset}.json")
+    out = Path(args.out or f"results/{datetime.now():%Y%m%d-%H%M%S}_{args.label or server_info.get('backend', 'server')}_{args.dataset}.json")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2))
     print(f"\nSaved {out}")
