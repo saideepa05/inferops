@@ -71,7 +71,8 @@ $env:INFEROPS_TORCH_THREADS = "4"
 ```
 
 **Kaggle GPU:** import a notebook from [notebooks/](notebooks/)
-([week 2 baseline](notebooks/week2_baseline_gpu.ipynb), [week 3 quantization](notebooks/week3_quantization_gpu.ipynb))
+([week 2 baseline](notebooks/week2_baseline_gpu.ipynb), [week 3 quantization](notebooks/week3_quantization_gpu.ipynb),
+[week 4 batching](notebooks/week4_batching_gpu.ipynb))
 into a Kaggle notebook with GPU T4 x2 and Internet enabled. On a T4, use
 `INFEROPS_DTYPE=float16`; T4s have no bfloat16 support. 8-bit and 4-bit weights:
 `INFEROPS_QUANTIZATION=int8|nf4` (needs `pip install -e ".[hf,quant]"`).
