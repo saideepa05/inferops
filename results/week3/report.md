@@ -37,6 +37,8 @@ Generated 2026-10-19 04:10 UTC
   notebook now refuses to apply the fallback after a passing check.
 - **Anomaly:** `vllm-fp16` at concurrency 1 measured TPOT 102.6 ms, slower than its own 40.6 ms at
   concurrency 8. Treat that cell as unreliable until re-measured without `--enforce-eager`.
+- **Follow-up:** a clean vLLM baseline (fp16 and AWQ, CUDA graphs on) is the first run of week 4 and
+  replaces the vLLM speed numbers above. Accuracy, memory and KV-cache numbers are unaffected.
 
 ## Findings
 _Write these yourself. See the questions at the end of the notebook._
