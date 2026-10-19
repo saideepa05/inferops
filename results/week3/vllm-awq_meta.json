@@ -1,0 +1,8 @@
+{
+  "engine": "vllm",
+  "precision": "awq",
+  "model": "Qwen/Qwen2.5-3B-Instruct-AWQ",
+  "weights_gb": 1.95,
+  "kv_cache_tokens": 312880.0,
+  "max_concurrency_at_4096": 76.39
+}

@@ -1,0 +1,6 @@
+{
+  "engine": "hf",
+  "precision": "nf4",
+  "model": "Qwen/Qwen2.5-3B-Instruct",
+  "loaded_mem_gb": 2.2216796875
+}

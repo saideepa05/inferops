@@ -1,0 +1,8 @@
+{
+  "engine": "vllm",
+  "precision": "gptq-int8",
+  "model": "Qwen/Qwen2.5-3B-Instruct-GPTQ-Int8",
+  "weights_gb": 3.27,
+  "kv_cache_tokens": 273744.0,
+  "max_concurrency_at_4096": 66.83
+}

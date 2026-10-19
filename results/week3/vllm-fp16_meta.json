@@ -1,0 +1,8 @@
+{
+  "engine": "vllm",
+  "precision": "fp16",
+  "model": "Qwen/Qwen2.5-3B-Instruct",
+  "weights_gb": 5.79,
+  "kv_cache_tokens": 199520.0,
+  "max_concurrency_at_4096": 48.71
+}
