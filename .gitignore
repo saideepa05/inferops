@@ -5,3 +5,4 @@ __pycache__/
 .env
 # Benchmark results are evidence: commit the ones you cite, ignore scratch runs.
 results/scratch/
+results/cache/

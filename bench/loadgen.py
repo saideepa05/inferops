@@ -43,10 +43,12 @@ class RequestResult:
         return (self.e2e - self.ttft) / (self.completion_tokens - 1)
 
 
-async def send_request(client: httpx.AsyncClient, url: str, messages: list[dict], max_tokens: int,
+async def send_request(client: httpx.AsyncClient, url: str, model: str, messages: list[dict], max_tokens: int,
                        ignore_eos: bool) -> RequestResult:
-    payload = {"messages": messages, "max_tokens": max_tokens, "temperature": 0.0,
-               "stream": True, "ignore_eos": ignore_eos}
+    # stream_options: vLLM (like OpenAI) only sends token usage in a stream when
+    # asked; without it completion_tokens stays 0 and TPOT can't be computed.
+    payload = {"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": 0.0,
+               "stream": True, "stream_options": {"include_usage": True}, "ignore_eos": ignore_eos}
     result = RequestResult()
     start = last = time.perf_counter()
     try:
@@ -81,7 +83,7 @@ async def send_request(client: httpx.AsyncClient, url: str, messages: list[dict]
     return result
 
 
-async def run_level(url: str, prompts: list[list[dict]], concurrency: int, num_requests: int,
+async def run_level(url: str, model: str, prompts: list[list[dict]], concurrency: int, num_requests: int,
                     max_tokens: int, ignore_eos: bool, timeout: float) -> tuple[list[RequestResult], float]:
     jobs = iter(prompts[i % len(prompts)] for i in range(num_requests))
     results: list[RequestResult] = []
@@ -90,7 +92,7 @@ async def run_level(url: str, prompts: list[list[dict]], concurrency: int, num_r
     async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
         async def user() -> None:
             for messages in jobs:  # shared iterator: each user pulls the next job
-                results.append(await send_request(client, url, messages, max_tokens, ignore_eos))
+                results.append(await send_request(client, url, model, messages, max_tokens, ignore_eos))
 
         start = time.perf_counter()
         await asyncio.gather(*(user() for _ in range(concurrency)))
@@ -138,25 +140,31 @@ def print_table(levels: list[dict]) -> None:
     print("(latencies in ms; goodput in requests/s meeting the SLO)")
 
 
-async def main(args: argparse.Namespace) -> None:
-    url = args.url.rstrip("/")
+async def get_server_info(url: str) -> dict:
     async with httpx.AsyncClient(timeout=10) as client:
         health = await client.get(f"{url}/health")
         health.raise_for_status()
         # vLLM's /health returns an empty 200, so fall back to /v1/models.
-        server_info = health.json() if health.content else {}
-        if "model" not in server_info:
+        info = health.json() if health.content else {}
+        if "model" not in info:
             models = (await client.get(f"{url}/v1/models")).json()["data"]
-            server_info = {"backend": "openai-compatible", "model": models[0]["id"]}
+            info = {"backend": "openai-compatible", "model": models[0]["id"]}
+    return info
+
+
+async def main(args: argparse.Namespace) -> None:
+    url = args.url.rstrip("/")
+    server_info = await get_server_info(url)
+    model = server_info["model"]
     prompts = build_dataset(args.dataset, n=max(args.num_requests, 50), seed=args.seed)
 
     for _ in range(args.warmup):  # first request pays one-off costs (lazy init, caches)
-        await run_level(url, prompts, 1, 1, args.max_tokens, args.ignore_eos, args.timeout)
+        await run_level(url, model, prompts, 1, 1, args.max_tokens, args.ignore_eos, args.timeout)
 
     levels, raw = [], {}
     for c in args.concurrency:
         with GPUMonitor() as gpu:
-            results, wall = await run_level(url, prompts, c, args.num_requests, args.max_tokens,
+            results, wall = await run_level(url, model, prompts, c, args.num_requests, args.max_tokens,
                                             args.ignore_eos, args.timeout)
         levels.append(summarize(results, wall, c, args.slo_ttft_ms / 1000, args.slo_tpot_ms / 1000))
         levels[-1]["gpu"] = gpu.summary()

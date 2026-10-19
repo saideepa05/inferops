@@ -37,6 +37,7 @@ class StreamEvent:
 class Backend(ABC):
     name: str
     model_id: str
+    precision: str = "n/a"  # e.g. "float16", "bnb-nf4"; recorded in benchmark reports
 
     @abstractmethod
     def encode(self, messages: list[dict]) -> Prompt:

@@ -34,9 +34,18 @@ class HFBackend(Backend):
         self.model_id = settings.model_id
         self.device = torch.device(settings.device)
         self.tokenizer = AutoTokenizer.from_pretrained(settings.model_id)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            settings.model_id, dtype=getattr(torch, settings.dtype)
-        ).to(self.device)
+        dtype = getattr(torch, settings.dtype)
+        if settings.quantization == "none":
+            self.precision = settings.dtype
+            self.model = AutoModelForCausalLM.from_pretrained(settings.model_id, dtype=dtype).to(self.device)
+        else:
+            # Quantized weights are placed by accelerate (device_map), not .to():
+            # moving a bitsandbytes model after loading is not supported.
+            self.precision = f"bnb-{settings.quantization}"
+            self.model = AutoModelForCausalLM.from_pretrained(
+                settings.model_id, dtype=dtype, device_map={"": self.device},
+                quantization_config=_bnb_config(settings.quantization, dtype),
+            )
         self.model.eval()
 
         eos = self.model.generation_config.eos_token_id
@@ -96,6 +105,18 @@ class HFBackend(Backend):
             prompt_tokens=len(prompt.token_ids),
             completion_tokens=len(generated),
         )
+
+
+def _bnb_config(mode: str, compute_dtype: torch.dtype):
+    from transformers import BitsAndBytesConfig
+
+    if mode == "int8":
+        # LLM.int8(): int8 matmul, with outlier feature columns kept in FP16.
+        return BitsAndBytesConfig(load_in_8bit=True)
+    # NF4: 4-bit codes on a normal-distribution grid (weights are roughly
+    # Gaussian), one scale per 64 weights; dequantized to compute_dtype per matmul.
+    return BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                              bnb_4bit_compute_dtype=compute_dtype)
 
 
 def _sample(logits: torch.Tensor, temperature: float, top_p: float, generator: torch.Generator) -> int:

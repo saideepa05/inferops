@@ -20,7 +20,8 @@ def chat(**overrides) -> dict:
 
 
 def test_health(client):
-    assert client.get("/health").json() == {"status": "ok", "backend": "fake", "model": "fake-model"}
+    assert client.get("/health").json() == {"status": "ok", "backend": "fake", "model": "fake-model",
+                                           "precision": "n/a"}
 
 
 def test_non_streaming_completion(client):

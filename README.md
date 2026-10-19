@@ -70,9 +70,17 @@ $env:INFEROPS_TORCH_THREADS = "4"
 .\.venv\Scripts\uvicorn inferops.server:app --port 8000
 ```
 
-**Kaggle GPU:** import [notebooks/week2_baseline_gpu.ipynb](notebooks/week2_baseline_gpu.ipynb)
+**Kaggle GPU:** import a notebook from [notebooks/](notebooks/)
+([week 2 baseline](notebooks/week2_baseline_gpu.ipynb), [week 3 quantization](notebooks/week3_quantization_gpu.ipynb))
 into a Kaggle notebook with GPU T4 x2 and Internet enabled. On a T4, use
-`INFEROPS_DTYPE=float16`; T4s have no bfloat16 support.
+`INFEROPS_DTYPE=float16`; T4s have no bfloat16 support. 8-bit and 4-bit weights:
+`INFEROPS_QUANTIZATION=int8|nf4` (needs `pip install -e ".[hf,quant]"`).
+
+**Quality check** (GSM8K math accuracy with a 95% confidence interval, against any OpenAI-compatible server):
+
+```powershell
+.\.venv\Scripts\python -m bench.quality --url http://127.0.0.1:8000 --n 200 --label my-run
+```
 
 ## Configuration
 
@@ -86,7 +94,7 @@ inferops/            serving code
   server.py          HTTP API and SSE streaming
   backends/          engine implementations behind one interface
   metrics.py         Prometheus metrics
-bench/               load generator and prompt datasets
+bench/               load generator, prompt datasets, GSM8K quality check
 tests/               API contract and benchmark-math tests
 docs/                weekly learning notes and engineering decision records
 results/             benchmark JSON files (committed when cited in a report)

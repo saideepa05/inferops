@@ -34,7 +34,7 @@ def create_app(settings: Settings | None = None, backend: Backend | None = None)
     @app.get("/health")
     async def health(request: Request):
         b: Backend = request.app.state.backend
-        return {"status": "ok", "backend": b.name, "model": b.model_id}
+        return {"status": "ok", "backend": b.name, "model": b.model_id, "precision": b.precision}
 
     @app.get("/v1/models")
     async def models(request: Request):

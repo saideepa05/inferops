@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     # precision is often *slower* there. On a T4 GPU use float16 (no bf16 support).
     dtype: Literal["float32", "float16", "bfloat16"] = "float32"
     torch_threads: int | None = None
+    # Weight-only quantization via bitsandbytes (CUDA only). Weights are stored
+    # in 8 or 4 bits and dequantized to `dtype` inside every matmul, so memory
+    # drops but speed often does not improve. See docs/week3.md.
+    quantization: Literal["none", "int8", "nf4"] = "none"
 
     # The baseline engine runs one request at a time. Raising this does not
     # batch anything; it just lets requests fight over the same model.
